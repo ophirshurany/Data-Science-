@@ -25,11 +25,11 @@ df['Q2']=df.month.replace(months,[0,0,0,1,1,1,0,0,0,0,0,0]);
 df['Q3']=df.month.replace(months,[0,0,0,0,0,0,1,1,1,0,0,0]);
 df['Q4']=df.month.replace(months,[0,0,0,0,0,0,0,0,0,1,1,1]);
 df=df.drop('month', axis=1);
-#%%Missing Values
-#show null 
-df.isnull().sum()
 #correlation heat map
 plt.figure()
 cor = df.corr()
 sns.heatmap(cor, annot=True, cmap='jet')
 plt.show()
+#%%Missing Values
+#show null 
+df.isnull().sum()
