@@ -19,12 +19,10 @@ print(df.describe())
 df['y'] = df.y.eq('yes').mul(1)
 # Convert the month list to 4 binary quarters column 
 months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-dic={v:k for k,v in enumerate(months,1)};
-df['month']=df.month.replace(dic);
-df['Q1']=df.month.replace(list(dic.values()),[1,1,1,0,0,0,0,0,0,0,0,0]);
-df['Q2']=df.month.replace(list(dic.values()),[0,0,0,1,1,1,0,0,0,0,0,0]);
-df['Q3']=df.month.replace(list(dic.values()),[0,0,0,0,0,0,1,1,1,0,0,0]);
-df['Q4']=df.month.replace(list(dic.values()),[0,0,0,0,0,0,0,0,0,1,1,1]);
+df['Q1']=df.month.replace(months,[1,1,1,0,0,0,0,0,0,0,0,0]);
+df['Q2']=df.month.replace(months,[0,0,0,1,1,1,0,0,0,0,0,0]);
+df['Q3']=df.month.replace(months,[0,0,0,0,0,0,1,1,1,0,0,0]);
+df['Q4']=df.month.replace(months,[0,0,0,0,0,0,0,0,0,1,1,1]);
 df=df.drop('month', axis=1);
 #%%Missing Values
 print(df.isnull().sum())
