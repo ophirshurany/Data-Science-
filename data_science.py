@@ -6,15 +6,16 @@ Created on Sun Dec  8 23:51:46 2019
 #import packages
 import pandas as pd
 #import numpy as np
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import seaborn as sns
 #%% create dataframe
 df = pd.read_csv("bank.csv",sep='|',encoding='utf8');
 #view first 5 rows in df
-print(df.head())
+df.head()
 #presenting all columns, number of rows and type
-print(df.info())
+df.info()
 #feature statistics for numerical categories
-print(df.describe())
+df.describe()
 #change "yes" or "no" to 1 or 0
 df['y'] = df.y.eq('yes').mul(1)
 # Convert the month list to 4 binary quarters column 
@@ -25,4 +26,10 @@ df['Q3']=df.month.replace(months,[0,0,0,0,0,0,1,1,1,0,0,0]);
 df['Q4']=df.month.replace(months,[0,0,0,0,0,0,0,0,0,1,1,1]);
 df=df.drop('month', axis=1);
 #%%Missing Values
-print(df.isnull().sum())
+#show null 
+df.isnull().sum()
+#correlation heat map
+plt.figure()
+cor = df.corr()
+sns.heatmap(cor, annot=True, cmap='jet')
+plt.show()
