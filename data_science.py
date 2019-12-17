@@ -19,7 +19,30 @@ df.head()
 df.info()
 #feature statistics for numerical categories
 df.describe()
+#%% plot pie with barplot
+# f, ax = plt.subplots(1,2)
+# colors = ["#FA5858", "#64FE2E"]
+# labels ="Did not Open Term Suscriptions", "Opened Term Suscriptions"
 
+# plt.suptitle('Information on Term Suscriptions', fontsize=20)
+
+# df["y"].value_counts().plot.pie(explode=[0,0.25], autopct='%1.2f%%', ax=ax[0], shadow=True, colors=colors, 
+#                                              labels=labels, fontsize=12, startangle=25)
+
+
+# # ax[0].set_title('State of Loan', fontsize=16)
+# ax[0].set_ylabel('% of Condition of Loans', fontsize=14)
+
+# # sns.countplot('loan_condition', data=df, ax=ax[1], palette=colors)
+# # ax[1].set_title('Condition of Loans', fontsize=20)
+# # ax[1].set_xticklabels(['Good', 'Bad'], rotation='horizontal')
+# palette = ["#64FE2E", "#FA5858"]
+
+# sns.barplot(x="education", y="campaign", hue="y", data=df, palette=palette, estimator=lambda x: len(x) / len(df) * 100)
+# ax[1].set(ylabel="(%)")
+# ax[1].set_xticklabels(df["education"].unique(), rotation=0, rotation_mode="anchor")
+# plt.show()
+#%%
 #FOR 6.1 =============================================================================
 # sns.countplot(x='y',data=df)
 # d1=df.copy()
@@ -45,6 +68,7 @@ Q = [1,1,1,1,2,2,2,3,3,3,4,4,4];month_dic=dict(zip(months,Q))
 df['month']=df.month.replace(month_dic)
 df=pd.get_dummies(df, columns=['month'],prefix='Q')
 df['education']=df.education.replace(['basic.6y','basic.4y', 'basic.9y'], 'basic')
+#%% yes no distribution among features
 for col in list(df.columns):
     plt.figure()
     sns.countplot(x=col,hue='y',data=df)
@@ -65,12 +89,15 @@ df.job.replace({"unknown": np.nan}, inplace=True)
 df['job']=df.job.astype('category').cat.codes
 df.job.replace({-1: np.nan}, inplace=True)
 #The significant Variables are 'education', 'job', 'housing', and 'loan'.
-sns.countplot(x='education',hue='y',data=df)
+#sns.countplot(x='education',hue='y',data=df)
 #%%correlation heat map
 plt.figure()
-cor = df.corr()
-cor.head()
-sns.heatmap(cor, annot=False,cmap='coolwarm')
+# Separate both dataframes into 
+numeric_df = df.select_dtypes(exclude="object")
+# categorical_df = df.select_dtypes(include="object")
+cor = numeric_df.corr()
+plt.title("Correlation Matrix", fontsize=16)
+sns.heatmap(cor, annot=False,cbar=True,cmap='coolwarm')
 #%%Missing Values
 #show null 
 print(df.isna().sum())
