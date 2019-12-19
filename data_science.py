@@ -23,20 +23,21 @@ df.describe()
 #add data to skew dataset  ====================================================
 sns.countplot(x='y',data=df)
 d1=df.copy()
-d2=d1[d1.y=='yes']
-d3=d1[d1.y=='no']
+d2=d1[d1.y==1]
+d3=d1[d1.y==0]
 while len(d3.y)>=len(d2.y):
     d1=pd.concat([d1, d2])
-    d2=d1[d1.y=='yes']
+    d2=d1[d1.y==1]
 df=d1
 sns.countplot(x='y',data=df)
 # =============================================================================
 #%% Histograms for categorial features
-cat_features = list(df.select_dtypes(include="object").columns)
+cat_features = df.select_dtypes(include="object").columns
+d1=d1.dropna()
+df_group=d1.groupby("y")
+df_group_yes=df_group.get_group(1)
+df_group_no=df_group.get_group(0)
 for feature in cat_features:
-    df_group=df.groupby("y")
-    df_group_yes=df_group.get_group("yes")
-    df_group_no=df_group.get_group("no")
     feature_df = pd.DataFrame()
     feature_df["no"] = df_group_no[feature].value_counts()
     feature_df["yes"] = df_group_yes[feature].value_counts()
@@ -54,7 +55,7 @@ for feature in num_features:
     df_group_yes=df_group.get_group("yes")
     df_group_no=df_group.get_group("no")
     #plt.figure()
-    plt.hist([df_group_yes[feature],df_group_no[feature]],label=["yes","no"])
+    plt.hist([df_group_yes[feature],df_group_no[feature]],label=["no","yes"])
     #plt.hist(df_group_yes[feature],label=feature)
     plt.legend()
     plt.title("Feature Histogram - " + feature)
@@ -122,9 +123,8 @@ for col in lst:
     sns.boxplot(x='y', y=col, data=df)
 #%%
 from sklearn.preprocessing import MinMaxScaler, StandardScaler    
-idx_numeric=[0,10,11,12,14,15,16,17,18]
 scaler = MinMaxScaler()
-df[df.columns[idx_numeric]] = scaler.fit_transform(df[df.columns[idx_numeric]])
+numeric_df=StandardScaler().fit_transform(numeric_df)
  # NOTE=============================================================================
 # Outliers: Outliers are defined as 1.5 x Q3 value (75th percentile).
 # From the above table, it can be seen that only 'age' and 'campaign'
@@ -140,8 +140,8 @@ df[df.columns[idx_numeric]] = scaler.fit_transform(df[df.columns[idx_numeric]])
 #%%
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
-neigh = NearestNeighbors(n_neighbors=2)
-#X is np.array
-nbrs = neigh.fit(X)
-distances, indices = nbrs.kneighbors(X)
-clustering = DBSCAN(eps=3, min_samples=2).fit(df)
+db = DBSCAN(eps=3, min_samples=10).fit(numeric_df)
+labels=db.labels
+df["cluster_Db"]=labels
+realClusterNum=len(set(labels))-(1 if -1 in labels else 0)
+clusterNum=len(set(labels))
