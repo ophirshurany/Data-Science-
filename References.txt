@@ -7,7 +7,7 @@ https://www.kaggle.com/henriqueyamahata/bank-marketing-classification-roc-f1-rec
 
 Boxplot
 https://www.drawingfromdata.com/setting-figure-size-using-seaborn-and-matplotlib
-
+https://jovianlin.io/data-visualization-seaborn-part-2/
 DBscan
 https://towardsdatascience.com/dbscan-algorithm-complete-guide-and-application-with-python-scikit-learn-d690cbae4c5d
 https://towardsdatascience.com/machine-learning-clustering-dbscan-determine-the-optimal-value-for-epsilon-eps-python-example-3100091cfbc
