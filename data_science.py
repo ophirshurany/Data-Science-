@@ -15,10 +15,9 @@ df = pd.read_csv("bank.csv",sep='|');
 df = df.drop_duplicates('Unnamed: 0',keep=False)
 #drop #rows
 df=df.drop('Unnamed: 0',axis=1)
-#we drop duration as well because high correlation. We save it for later
-duration=df["duration"]
-df_copy_1=df #Keep original
+#we drop duration as well because high correlation
 df=df.drop('duration',axis=1)
+df_copy_1=df #Keep original
 #%%view first 5 rows in df
 df.head()
 #presenting all columns, number of rows and type
@@ -193,11 +192,45 @@ heatmap=sns.heatmap(abs(cor),mask=mask,annot=True,center=0,cmap=cmap,square=True
 # we delete the features with the most cross feature values
 # with highest correlation score:
 # =============================================================================
-df=df.drop(["nr.employed","emp.var.rate"],axis=1)
+df=df.drop(["euribor3m","emp.var.rate"],axis=1)
 #%%#BOX PLOT
-#age
-sns.boxplot(y="age",data=numeric_df)
- 
+#Outliers: Outliers are defined as 1.5 x Q3 value (75th percentile).
+feature_lst=["cons.price.idx","nr.employed","cons.conf.idx","age","campaign","previous"]
+df_with_outliers=df.copy()
+#cons.price.idx
+sns.boxplot(x='y', y="cons.price.idx", data=df_with_outliers)
+#There are no outliers for this feature.
+#nr.employed
+sns.boxplot(x='y', y="nr.employed", data=df_with_outliers)
+#There are no outliers for this feature.
+#cons.conf.idx
+sns.boxplot(x='y', y="cons.conf.idx", data=df_with_outliers)
+#There are some unusual results in the target variable "no", 
+#but these do not significantly exceed the upper limit. Then, 
+#they fit the upper bound of the target variable "yes". 
+#Therefore, we chose to leave it.
+sns.boxplot(x='y', y="age", data=df_with_outliers)
+sns.boxplot(x='y', y="campaign", data=df_with_outliers)
+# =============================================================================
+# We have outliers as max('age') and max('campaign') > 1.5Q3('age')
+# and >1.5Q3('campaign') respectively.
+# But we also see that the value of these outliers are not so unrealistic
+# (max('age')=98 and max('campaign')=56).
+# Hence, we need not remove them since the prediction model 
+# should represent the real world. This improves the 
+# generalizability of the model and makes it robust 
+# for real world situations. 
+# The outliers, therefore, are not removed.
+# =============================================================================
+sns.boxplot(x='y', y="previous", data=df_with_outliers)
+# =============================================================================
+# This variable has many unusual results, from the database, The unusual 
+# results belong to many calls made to a customer and therefore the outlier
+#  results are much higher. We decided to sift the top results that 
+#  exceed 3 times the upper limit, leaving the other 
+#  results less than the top limit.
+df_outliers=df_with_outliers[["previous"]]
+# =============================================================================
 #%%
 plt.close('all')
 from sklearn.preprocessing import MinMaxScaler   
@@ -205,7 +238,8 @@ scaler = MinMaxScaler((-1,1))
 normalized_df_data =scaler.fit_transform(numeric_df.values)
 X=numeric_df
 # =============================================================================
-#%%The optimal value for epsilon will be found at the point of maximum curvature.
+#%%5.1
+#The optimal value for epsilon will be found at the point of maximum curvature.
 from sklearn.neighbors import NearestNeighbors
 neigh = NearestNeighbors(n_neighbors=2)
 nbrs = neigh.fit(X)
@@ -213,13 +247,23 @@ distances, indices = nbrs.kneighbors(X)
 distances = np.sort(distances, axis=0)
 distances = distances[:,1]
 plt.plot(distances)
-#%%eps = the elbow of neigh
+plt.plot(32208,2.4,'ro')
+#eps = the elbow of neigh
 from sklearn.cluster import DBSCAN
-db = DBSCAN(eps=1.5, min_samples=5).fit(X)
+db = DBSCAN(eps=2.4, min_samples=5).fit(X)
 labels=db.labels_
 clusterNum=len(set(labels))
-#%%
 df["cluster_Db"]=labels
 realClusterNum=len(set(labels))-(1 if -1 in labels else 0)
 noise=df.cluster_Db.value_counts()[-1]
 noise_percentage=round(100*noise/df.shape[0],0)
+df = df[df.cluster_Db != -1]
+Num_outliers_1st=df_with_outliers.shape[0]-df.shape[0]
+#5.2 Lots of clusters means low number of noise, therefore low number of outliers.
+#5.3 - Another method to remove outliers
+from scipy import stats
+z = np.abs(stats.zscore(df_outliers))
+#define a threshold to identify an outlier
+threshold = 3
+df_outliers=df_outliers[(z < threshold).all(axis=1)]
+Num_outliers_2nd=df_with_outliers.shape[0]-df_outliers.shape[0]
