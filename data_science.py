@@ -240,9 +240,9 @@ df_outliers=df_with_outliers[["previous"]]
 plt.close('all')
 from sklearn.preprocessing import MinMaxScaler   
 numeric_df = df.select_dtypes(exclude="object")
-scaler = MinMaxScaler((-1,1))
+scaler = MinMaxScaler()
 normalized_df_data =scaler.fit_transform(numeric_df.values)
-x_scaled=numeric_df
+x_scaled=pd.DataFrame(normalized_df_data,columns=numeric_df.columns)
 # =============================================================================
 #%%5.1
 #The optimal value for epsilon will be found at the point of maximum curvature.
@@ -256,8 +256,8 @@ plt.plot(distances)
 plt.title("Find  the  optimal "+r'$  \varepsilon$',fontsize='xx-large', fontweight='bold')
 plt.ylabel("epsilon")
 plt.xlabel("Feature unique values")
-plt.plot([32758], [2.8], 'ro')
-plt.annotate('Optimal '+r'$\varepsilon$', (32758,2.8),
+plt.plot([37210], [1.1], 'ro')
+plt.annotate('Optimal '+r'$\varepsilon$', (37210,1.1),
             xytext=(0.8, 0.9), textcoords='axes fraction',
             arrowprops=dict(facecolor='black', shrink=0.05),
             fontsize=16,
@@ -265,10 +265,12 @@ plt.annotate('Optimal '+r'$\varepsilon$', (32758,2.8),
 plt.tight_layout()
 #eps = the best epsilon is at the "elbow" of NearestNeighbors graph
 from sklearn.cluster import DBSCAN
-db = DBSCAN(eps=2.8).fit(x_scaled)
-
+db = DBSCAN(eps=1.1,min_samples=5).fit(x_scaled)
 labels=db.labels_
 clusterNum=len(set(labels))
+noise=np.count_nonzero(labels == -1)
+noise_percentage=round(100*noise/df.shape[0],0)
+#%%
 df["cluster_Db"]=labels
 realClusterNum=len(set(labels))-(1 if -1 in labels else 0)
 df = df[df.cluster_Db != -1]
