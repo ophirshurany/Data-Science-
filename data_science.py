@@ -8,15 +8,17 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
 plt.close('all')
 #%%1. create dataframe
-df = pd.read_csv("bank.csv",sep='|',encoding='utf8');
+data = pd.read_csv("bank.csv",sep='|',encoding='utf8')
 #drop duplicate data
+df = data
 df = df.drop_duplicates('Unnamed: 0',keep=False)
 #drop #rows
 df=df.drop('Unnamed: 0',axis=1)
 df_copy_original=df #Keep original
-
 #%%2.1. view first 5 rows in df
 df.head()
 #2.2. presenting all columns, number of rows and type
@@ -53,14 +55,11 @@ df=pd.get_dummies(df, columns=['month'],prefix='Q')
 #2.4.3. convert categorial features to numeric and drop the number of variables
 #education
 df['education']=df.education.replace(['basic.6y','basic.4y', 'basic.9y'], 'basic')
-#for education it makes sense to use ranking
-education_dic={'illiterate': 0,'basic' : 1,'high.school' : 2,'professional.course' : 3,'university.degree' : 4}
-df['education']=df.education.replace(education_dic)
 #job
 df.job.replace(['admin.', 'management'], 'administration_management', inplace=True)
-df.loc[(df['age'] > 60 ) & (df['job'] == 'admin.' ) , 'job'] = 'retired'
+df.loc[(df['age'] > 60 ) & (df['job'] == 'administration_management' ) , 'job'] = 'retired'
 df.job.replace(['retired', 'unemployed'], 'no_active_income', inplace=True)
-df.job.replace('housemaid', 'services')
+df.job.replace('housemaid', 'services',inplace=True)
 df['job']=df.job.replace('entrepreneur', 'self-employed')
 # Convert other Series from yes or no to binary
 df['housing'] = df.housing.map(dict(yes=1, no=0));
@@ -96,20 +95,31 @@ df = df[df.housing != "unknown"]
 #  We, therefore, can use the job to predict education.
 # =============================================================================
 #to infer the missing values in 'job' and 'education', we make use of the cross-tabulation between 'job' and 'education'.
-a=pd.crosstab(df['job'], df['education'], rownames=['job'], colnames=['education'])
+df['education'] = df.education.replace(np.nan,'unknown',regex=True)
+df['job'] = df.job.replace(np.nan,'unknown',regex=True)
+pd.crosstab(df['job'], df['education'], rownames=['job'], colnames=['education'],margins=True)
 # =============================================================================
 # While imputing the values for job and education, we were cognizant of the fact that
 # the correlations should make real world sense. If it didn't 
 # make real world sense, we didn't replace the missing values.
 # =============================================================================
-#job
-df['job'] = df.job.replace(np.nan,'unknown',regex=True)
-df.loc[(df['job']=='unknown') & (df['education']==1), 'job'] = 'blue-collar'
-df.loc[(df['job']=='unknown') & (df['education']==3), 'job'] = 'technician'
 #education 
-df['education'] = df.education.replace(np.nan,'unknown',regex=True)
-df.loc[(df['education']=='unknown') & (df['job']=='management'), 'education'] = 4
+#for education it makes sense to use ranking
+education_dic={'illiterate': 0,'basic' : 1,'high.school' : 2,'professional.course' : 3,'university.degree' : 4}
+df['education']=df.education.replace(education_dic)
+#Most customers with "basic" education work as "blue-collar"
+df.loc[(df['job']=='unknown') & (df['education']==1), 'job'] = 'blue-collar'
+df.loc[(df['education']=='unknown') & (df['job']=='blue-collar'), 'education'] = 1
+#Most customers in "services" have a "high.school"  degree
 df.loc[(df['education']=='unknown') & (df['job']=='services'), 'education'] = 2
+df.loc[(df['job']=='unknown') & (df['education']==2), 'job'] = 'services'
+#Most customers with "professional.course education work as "technician"
+df.loc[(df['job']=='unknown') & (df['education']==3), 'job'] = 'technician'
+df.loc[(df['education']=='unknown') & (df['job']=='technician'), 'education'] = 3
+#Most customers in "administration_management" have a "university.degree"  
+df.loc[(df['education']=='unknown') & (df['job']=='administration_management'), 'education'] = 4
+df.loc[(df['job']=='unknown') & (df['education']=='administration_management'), 'job'] = 'administration_management'
+pd.crosstab(df['job'], df['education'], rownames=['job'], colnames=['education'],margins=True)
 #Impute by mean value for age & campaign
 #df = df.replace('unknown',np.nan)
 #age
@@ -131,7 +141,7 @@ plt.ylabel("Count")
 #  the distribution of the known values. Here, histograms were
 #  created using matplotlib.
 # =============================================================================
-pd.crosstab(df['pdays'],df['poutcome'], values=df['age'], aggfunc='count')
+pd.crosstab(df['pdays'],df['poutcome'],dropna=False,margins=True)
 # =============================================================================
 # As we can see from the above table, the majority of the values for 'pdays'
 #  are missing. The majority of these missing values occur when the 'poutcome'
@@ -162,12 +172,16 @@ print("Number of deleted rows = " + str(df_copy_original.shape[0]-df.shape[0]))
 print("only "+ str(round(100*(df_copy_original.shape[0]-df.shape[0])/df.shape[0],1))+" %")
 print("Finally, the total NaN rows = " + str(sum(df.isna().sum())))
 #%%2.5. correlation heat map
+df=df.drop(["duration","Q_4"],axis=1)
+y=df.y
+df=df.drop("y",axis=1)
+df["y"]=y
 cor = df.corr().round(1)
 mask = np.zeros_like(cor, dtype=np.bool)
 mask[np.triu_indices_from(mask)] = True
 cmap = sns.diverging_palette(220, 10, as_cmap=True)
-plt.figure()
-heatmap=sns.heatmap(cor,mask=mask,annot=True,annot_kws={"size": 7},
+plt.figure(figsize=(20, 15))
+heatmap=sns.heatmap(cor,mask=mask,annot=True,annot_kws={"size": 10},
                     center=0,cmap=cmap,square=True, linewidths=.5,
                     cbar_kws={"shrink": .5},yticklabels=1,xticklabels=1)
 plt.title("Correlation Matrix", fontsize='xx-large', fontweight='bold')
@@ -186,15 +200,15 @@ plt.title("Correlation Matrix", fontsize='xx-large', fontweight='bold')
 # =============================================================================
 #Q4
 #Delete Q4 in order to avoid dummy variable trap
-df=df.drop(["duration","Q_4","euribor3m","emp.var.rate","poutcome_nonexistent","marital_single"],axis=1)
-df_copy_feature_filtered=df_copy_original.drop(["duration","euribor3m","emp.var.rate"],axis=1)
+df=df.drop(["euribor3m","emp.var.rate","poutcome_nonexistent","marital_single","pdays_missing"],axis=1)
+df_copy_feature_filtered=df.copy()
 #now we want to see the updated correlation matrix
 cor = df.corr().round(1)
 mask = np.zeros_like(cor, dtype=np.bool)
 mask[np.triu_indices_from(mask)] = True
 cmap = sns.diverging_palette(220, 10, as_cmap=True)
-plt.figure()
-heatmap=sns.heatmap(cor,mask=mask,annot=True,annot_kws={"size": 7},
+plt.figure(figsize=(20, 15))
+heatmap=sns.heatmap(cor,mask=mask,annot=True,annot_kws={"size": 10},
                     center=0,cmap=cmap,square=True, linewidths=.5,
                     cbar_kws={"shrink": .5},yticklabels=1,xticklabels=1)
 plt.title("Updated Correlation Matrix", fontsize='xx-large', fontweight='bold')
@@ -242,22 +256,22 @@ from sklearn.preprocessing import MinMaxScaler
 numeric_df = df.select_dtypes(exclude="object")
 scaler = MinMaxScaler()
 normalized_df_data =scaler.fit_transform(numeric_df.values)
-x_scaled=pd.DataFrame(normalized_df_data,columns=numeric_df.columns)
+df_scaled=pd.DataFrame(normalized_df_data,columns=numeric_df.columns)
 # =============================================================================
 #%%5.1
 #The optimal value for epsilon will be found at the point of maximum curvature.
 from sklearn.neighbors import NearestNeighbors
 neigh = NearestNeighbors(n_neighbors=2)
-nbrs = neigh.fit(x_scaled)
-distances, indices = nbrs.kneighbors(x_scaled)
+nbrs = neigh.fit(df_scaled)
+distances, indices = nbrs.kneighbors(df_scaled)
 distances = np.sort(distances, axis=0)
 distances = distances[:,1]
 plt.plot(distances)
 plt.title("Find  the  optimal "+r'$  \varepsilon$',fontsize='xx-large', fontweight='bold')
 plt.ylabel("epsilon")
 plt.xlabel("Feature unique values")
-plt.plot([37210], [1.1], 'ro')
-plt.annotate('Optimal '+r'$\varepsilon$', (37210,1.1),
+plt.plot([33593], [1.03], 'ro')
+plt.annotate('Optimal '+r'$\varepsilon$', (32710,1.1),
             xytext=(0.8, 0.9), textcoords='axes fraction',
             arrowprops=dict(facecolor='black', shrink=0.05),
             fontsize=16,
@@ -265,17 +279,19 @@ plt.annotate('Optimal '+r'$\varepsilon$', (37210,1.1),
 plt.tight_layout()
 #eps = the best epsilon is at the "elbow" of NearestNeighbors graph
 from sklearn.cluster import DBSCAN
-db = DBSCAN(eps=1.1,min_samples=5).fit(x_scaled)
+db = DBSCAN(eps=1.03,min_samples=5).fit(df_scaled)
 labels=db.labels_
 clusterNum=len(set(labels))
+print("number of clusters is "+str(clusterNum))
 noise=np.count_nonzero(labels == -1)
-noise_percentage=round(100*noise/df.shape[0],0)
+noise_percentage=round(100*noise/df_scaled.shape[0],0)
+print("Number of outliers is "+str(noise)+ ", Noise accounts for "+str(noise_percentage)+"%  of the total dataset" )
 #%%
-df["cluster_Db"]=labels
-realClusterNum=len(set(labels))-(1 if -1 in labels else 0)
-df = df[df.cluster_Db != -1]
-Num_outliers_1st=df_with_outliers.shape[0]-df.shape[0]
-noise_percentage=round(100*Num_outliers_1st/df.shape[0],0)
+df=df_scaled
+df_DBSCAN=df.copy()
+df_DBSCAN["cluster_Db"]=labels
+df_DBSCAN = df_DBSCAN[df_DBSCAN.cluster_Db != -1]
+df_DBSCAN=df_DBSCAN.drop("cluster_Db",axis=1)
 #5.2 Lots of clusters means low number of noise, therefore low number of outliers.
 #5.3 - Another method to remove outliers
 from scipy import stats
@@ -284,3 +300,152 @@ z = np.abs(stats.zscore(df_outliers))
 threshold = 3
 df_outliers=df_outliers[(z < threshold).all(axis=1)]
 Num_outliers_2nd=df_with_outliers.shape[0]-df_outliers.shape[0]
+print("number of outliers is "+str(Num_outliers_2nd))
+#%% 6. Predictive Models
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+y=df_DBSCAN.y
+X=df_DBSCAN.drop("y",axis=1)
+x_train, x_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, random_state=0) #80/20 split
+x_train.shape
+# scaler = StandardScaler()
+# scaler.fit(x_train)
+# x_train = scaler.fit_transform(x_train)
+# #PCA
+# pca = PCA(n_components=10)
+# #Train
+# pca.fit(x_train)
+# x_train = pca.fit_transform(x_train)
+# x_train.shape
+# #Test
+# pca.fit(x_test)
+# x_test = pca.fit_transform(x_test)
+#%% 6.1.1 Logistic Regression
+model=LogisticRegression(penalty='l2', max_iter=1000)
+model.fit(x_train, y_train)
+prediction_LR=model.predict(x_test)
+print("for Logistic Regression we get " +str(round(accuracy_score(y_test, prediction_LR),5)))
+print(classification_report(y_test, prediction_LR,target_names=["no","yes"]))
+#AUC
+probsLR = model.predict_proba(x_test)
+predsLR = probsLR[:,1]
+fprLR, tprLR, thresholdLR = metrics.roc_curve(y_test, predsLR)
+roc_aucLR = metrics.auc(fprLR, tprLR)
+#%% 6.1.2 Random forest
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import RandomizedSearchCV
+from pprint import pprint
+rfc = RandomForestClassifier()
+#explore the hyperparameters
+pprint(rfc.get_params())
+# Number of trees in random forest
+n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
+# Number of features to consider at every split
+max_features = ['auto', 'sqrt']
+# Maximum number of levels in tree
+max_depth = [int(x) for x in np.linspace(2, 20, num = 10)]
+max_depth.append(None)
+# Minimum number of samples required to split a node
+min_samples_split = [2, 5, 10]
+# Minimum number of samples required at each leaf node
+min_samples_leaf = [1, 2, 4]
+# Method of selecting samples for training each tree
+bootstrap = [True, False]
+# Create the random grid
+random_grid = {'n_estimators': n_estimators,
+               'max_features': max_features,
+               'max_depth': max_depth,
+               'min_samples_split': min_samples_split,
+               'min_samples_leaf': min_samples_leaf,
+               'bootstrap': bootstrap}
+pprint(random_grid)
+# search across 100 different combinations, and use all available cores
+rf_random = RandomizedSearchCV(estimator = rfc,
+                               param_distributions = random_grid,
+                               n_iter = 100, cv = 3, verbose=2,
+                               random_state=42, n_jobs = -1)
+rf_random.fit(x_train, y_train)
+rf_random.best_params_
+best_random = rf_random.best_estimator_
+prediction_RF = best_random.predict(x_test)
+print("for Random Forest we get " +str(round(accuracy_score(y_test, prediction_RF),5)))
+print(classification_report(y_test, prediction_RF,target_names=["no","yes"]))
+#AUC
+probs_RF = rf_random.predict_proba(x_test)
+preds_RF = probs_RF[:,1]
+fprrfc, tprrfc, thresholdrfc = metrics.roc_curve(y_test, preds_RF)
+roc_aucrfc = metrics.auc(fprrfc, tprrfc)
+#%% 6.1.3. ADABOOST
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+ADA = AdaBoostClassifier()
+#explore the hyperparameters
+pprint(ADA.get_params())
+# The maximum number of estimators at which boosting is terminated
+learning_rate = [float(x) for x in np.linspace(start = 0, stop = 3, num = 9)]
+#algorithm ===================================================================
+# If ‘SAMME.R’ then use the SAMME.R real boosting algorithm.
+# base_estimator must support calculation of class probabilities.
+# If ‘SAMME’ then use the SAMME discrete boosting algorithm.
+# The SAMME.R algorithm typically converges faster than SAMME,
+# achieving a lower test error with fewer boosting iterations.
+# =============================================================================
+algorithm = ["SAMME", "SAMME.R"]
+n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
+#The base estimator from which the boosted ensemble is built
+base_estimator= [DecisionTreeClassifier(max_depth=x) for x in np.linspace(2, 20, num = 10)]
+base_estimator.append(None)
+# Create the random grid
+random_grid = {'n_estimators': n_estimators,
+               'algorithm': algorithm,
+               'base_estimator': base_estimator, 
+               'learning_rate':learning_rate}
+pprint(random_grid)
+# search across 100 different combinations, and use all available cores
+ADA_random = RandomizedSearchCV(estimator = ADA,
+                               param_distributions = random_grid,
+                               n_iter = 100, cv = 3, verbose=2,
+                               random_state=42, n_jobs = -1)
+ADA_random.fit(x_train, y_train)
+ADA_random.best_params_
+ADA_best_random = ADA_random.best_estimator_
+ADA.fit(x_train, y_train)
+predictions_ADA = best_random.predict(x_test)
+print("for ADABOOST we get " +str(round(accuracy_score(y_test, predictions_ADA),5)))
+print(classification_report(y_test, predictions_ADA))
+#AUC
+probs_ADA = ADA.predict_proba(x_test)
+preds_ADA = probs_ADA[:,1]
+fprADA, tprADA, thresholdADA = metrics.roc_curve(y_test, preds_ADA)
+roc_aucADA = metrics.auc(fprADA, tprADA)
+#%%
+from sklearn.ensemble import GradientBoostingClassifier
+grd = GradientBoostingClassifier()
+#explore the hyperparameters
+pprint(grd.get_params())
+grd.fit(x_train, y_train)
+predictions_grd = grd.predict(x_test)
+print("for Gradient Boosting we get " +str(round(accuracy_score(y_test, predictions_grd),5)))
+print(classification_report(y_test, predictions_grd))
+#AUC
+probs_grd = grd.predict_proba(x_test)
+preds_grd = probs_grd[:,1]
+fprgrd, tprgrd, thresholdgrd = metrics.roc_curve(y_test, preds_grd)
+roc_aucgrd = metrics.auc(fprgrd, tprgrd)
+#%%AUC Curve
+sns.set()
+plt.plot([0, 1], [0, 1],'r--')
+plt.title('Predictive models RUC Comparison',fontsize=20)
+plt.ylabel('True Positive Rate',fontsize=20)
+plt.xlabel('False Positive Rate',fontsize=15)
+plt.plot(fprrfc, tprrfc, label = 'Random Forest AUC = %0.2f' % roc_aucrfc)
+plt.plot(fprLR, tprLR, label = 'Logistic Regression AUC = %0.2f' % roc_aucLR)
+plt.plot(fprADA, tprADA, label = 'ADABOOST AUC = %0.2f' % roc_aucADA)
+plt.plot(fprADA, tprADA, label = 'Gradient Boosting AUC = %0.2f' % roc_aucgrd)
+plt.legend(loc = 'lower right', prop={'size': 16})
