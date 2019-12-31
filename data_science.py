@@ -254,7 +254,7 @@ df_outliers=df_with_outliers[["previous"]]
 plt.close('all')
 from sklearn.preprocessing import MinMaxScaler   
 numeric_df = df.select_dtypes(exclude="object")
-scaler = MinMaxScaler()
+scaler = MinMaxScaler(feature_range = (0,1))
 normalized_df_data =scaler.fit_transform(numeric_df.values)
 df_scaled=pd.DataFrame(normalized_df_data,columns=numeric_df.columns)
 # =============================================================================
@@ -307,40 +307,56 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-y=df_DBSCAN.y
-X=df_DBSCAN.drop("y",axis=1)
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import RandomizedSearchCV
+from pprint import pprint
+kfold = model_selection.KFold(n_splits=10, random_state=42)
+y=df.y
+X=df.drop("y",axis=1)
 x_train, x_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, random_state=0) #80/20 split
 x_train.shape
-# scaler = StandardScaler()
-# scaler.fit(x_train)
-# x_train = scaler.fit_transform(x_train)
-# #PCA
-# pca = PCA(n_components=10)
-# #Train
-# pca.fit(x_train)
-# x_train = pca.fit_transform(x_train)
-# x_train.shape
-# #Test
-# pca.fit(x_test)
-# x_test = pca.fit_transform(x_test)
 #%% 6.1.1 Logistic Regression
-model=LogisticRegression(penalty='l2', max_iter=1000)
-model.fit(x_train, y_train)
-prediction_LR=model.predict(x_test)
-print("for Logistic Regression we get " +str(round(accuracy_score(y_test, prediction_LR),5)))
-print(classification_report(y_test, prediction_LR,target_names=["no","yes"]))
+Log_Reg=LogisticRegression()
+#explore the hyperparameters
+pprint(Log_Reg.get_params())
+# Number of features to consider at every split
+penalty = ['l1', 'l2',"elasticnet","none"]
+# Method of selecting samples for training each tree
+dual = [True, False]
+fit_intercept = [True, False]
+solver = ['lbfgs', 'newton-cg',"liblinear","sag","saga"]
+multi_class = ['auto', 'ovr',"multinomial"]
+warm_start = [True, False]
+C=[float(x) for x in np.logspace(-4, 4, 9)]
+# Create the random grid
+random_grid = {'penalty': penalty,
+               'fit_intercept': fit_intercept,
+               'solver': solver,
+               'multi_class': multi_class,
+               'warm_start': warm_start,
+               "C":C,
+               'dual': dual}
+pprint(random_grid)
+# search across 100 different combinations, and use all available cores
+Log_Reg_random = RandomizedSearchCV(estimator = Log_Reg,
+                               param_distributions = random_grid,
+                               n_iter = 100, cv = kfold, verbose=2,
+                               random_state=42, n_jobs = -1)
+Log_Reg_random.fit(x_train, y_train)
+Log_Reg_random.best_params_
+Log_Reg_best_random = Log_Reg_random.best_estimator_
+prediction_Log_Reg = Log_Reg_best_random.predict(x_test)
+
+print("for Logistic Regression we get " +str(round(accuracy_score(y_test, prediction_Log_Reg),5)))
+confusion_matrix(y_test, prediction_Log_Reg)
+print(classification_report(y_test, prediction_Log_Reg,target_names=["no","yes"]))
 #AUC
-probsLR = model.predict_proba(x_test)
+probsLR = Log_Reg_random.predict_proba(x_test)
 predsLR = probsLR[:,1]
 fprLR, tprLR, thresholdLR = metrics.roc_curve(y_test, predsLR)
 roc_aucLR = metrics.auc(fprLR, tprLR)
 #%% 6.1.2 Random forest
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import RandomizedSearchCV
-from pprint import pprint
 rfc = RandomForestClassifier()
 #explore the hyperparameters
 pprint(rfc.get_params())
@@ -368,13 +384,14 @@ pprint(random_grid)
 # search across 100 different combinations, and use all available cores
 rf_random = RandomizedSearchCV(estimator = rfc,
                                param_distributions = random_grid,
-                               n_iter = 100, cv = 3, verbose=2,
+                               n_iter = 100, cv = kfold, verbose=2,
                                random_state=42, n_jobs = -1)
 rf_random.fit(x_train, y_train)
 rf_random.best_params_
-best_random = rf_random.best_estimator_
-prediction_RF = best_random.predict(x_test)
+rf_best_random = rf_random.best_estimator_
+prediction_RF = rf_best_random.predict(x_test)
 print("for Random Forest we get " +str(round(accuracy_score(y_test, prediction_RF),5)))
+confusion_matrix(y_test, prediction_RF)
 print(classification_report(y_test, prediction_RF,target_names=["no","yes"]))
 #AUC
 probs_RF = rf_random.predict_proba(x_test)
@@ -387,7 +404,7 @@ from sklearn.tree import DecisionTreeClassifier
 ADA = AdaBoostClassifier()
 #explore the hyperparameters
 pprint(ADA.get_params())
-# The maximum number of estimators at which boosting is terminated
+#learning rate shrinks the contribution of each tree by learning_rate.
 learning_rate = [float(x) for x in np.linspace(start = 0, stop = 3, num = 9)]
 #algorithm ===================================================================
 # If ‘SAMME.R’ then use the SAMME.R real boosting algorithm.
@@ -410,17 +427,17 @@ pprint(random_grid)
 # search across 100 different combinations, and use all available cores
 ADA_random = RandomizedSearchCV(estimator = ADA,
                                param_distributions = random_grid,
-                               n_iter = 100, cv = 3, verbose=2,
+                               n_iter = 100, cv = kfold, verbose=2,
                                random_state=42, n_jobs = -1)
 ADA_random.fit(x_train, y_train)
 ADA_random.best_params_
 ADA_best_random = ADA_random.best_estimator_
-ADA.fit(x_train, y_train)
-predictions_ADA = best_random.predict(x_test)
+predictions_ADA = ADA_best_random.predict(x_test)
 print("for ADABOOST we get " +str(round(accuracy_score(y_test, predictions_ADA),5)))
-print(classification_report(y_test, predictions_ADA))
+confusion_matrix(y_test, predictions_ADA)
+print(classification_report(y_test, predictions_ADA,target_names=["no","yes"]))
 #AUC
-probs_ADA = ADA.predict_proba(x_test)
+probs_ADA = ADA_random.predict_proba(x_test)
 preds_ADA = probs_ADA[:,1]
 fprADA, tprADA, thresholdADA = metrics.roc_curve(y_test, preds_ADA)
 roc_aucADA = metrics.auc(fprADA, tprADA)
@@ -429,12 +446,44 @@ from sklearn.ensemble import GradientBoostingClassifier
 grd = GradientBoostingClassifier()
 #explore the hyperparameters
 pprint(grd.get_params())
-grd.fit(x_train, y_train)
-predictions_grd = grd.predict(x_test)
+# Number of trees in random forest
+n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
+# Number of features to consider at every split
+max_features = ['auto', 'sqrt',"log2"]
+# Maximum number of levels in tree
+max_depth = [int(x) for x in np.linspace(2, 20, num = 10)]
+max_depth.append(None)
+# Minimum number of samples required to split a node
+min_samples_split = [2, 5, 10]
+# Minimum number of samples required at each leaf node
+min_samples_leaf = [1, 2, 4]
+#learning rate shrinks the contribution of each tree by learning_rate.
+learning_rate=[round(float(x),1) for x in np.linspace(start = 0, stop = 1, num = 11)]
+#loss function to be optimized
+loss=["deviance", "exponential"]
+# Create the random grid
+random_grid = {'n_estimators': n_estimators,
+                'max_features': max_features,
+                'max_depth': max_depth,
+                'min_samples_split': min_samples_split,
+                'min_samples_leaf': min_samples_leaf,
+                'loss' : loss,
+                'learning_rate': learning_rate}
+pprint(random_grid)
+#search across 100 different combinations, and use all available cores
+grd_random = RandomizedSearchCV(estimator = grd,
+                                param_distributions = random_grid,
+                                n_iter = 100, cv = kfold, verbose=2,
+                                random_state=42, n_jobs = -1)
+grd_random.fit(x_train, y_train)
+grd_random.best_params_
+grd_best_random = grd_random.best_estimator_
+predictions_grd = grd_best_random.predict(x_test)
 print("for Gradient Boosting we get " +str(round(accuracy_score(y_test, predictions_grd),5)))
-print(classification_report(y_test, predictions_grd))
+confusion_matrix(y_test, predictions_grd)
+print(classification_report(y_test, predictions_grd,target_names=["no","yes"]))
 #AUC
-probs_grd = grd.predict_proba(x_test)
+probs_grd = grd_random.predict_proba(x_test)
 preds_grd = probs_grd[:,1]
 fprgrd, tprgrd, thresholdgrd = metrics.roc_curve(y_test, preds_grd)
 roc_aucgrd = metrics.auc(fprgrd, tprgrd)
