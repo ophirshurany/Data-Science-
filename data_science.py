@@ -30,7 +30,7 @@ df.describe()
 #%% Histograms for categorial features
 categorcial_variables =list(df.select_dtypes(include="object").columns)
 for feature in categorcial_variables:
-    plt.figure(figsize=(14, 9))
+    plt.figure(figsize=(12, 6))
     sns.countplot(x=feature,data=df)
     plt.title("Feature Histogram - " + feature,fontsize='xx-large', fontweight='bold')
     plt.ylabel("Count")
@@ -296,29 +296,17 @@ df_DBSCAN = df_DBSCAN[df_DBSCAN.cluster_Db != -1]
 df_DBSCAN=df_DBSCAN.drop("cluster_Db",axis=1)
 #5.2 Lots of clusters means low number of noise, therefore low number of outliers.
 #5.3 - Another method to remove outliers - LOF
-#first, we use our boxplot analysis to have a "ground_truth" knoledge about outliers:
-from scipy import stats
-z = np.abs(stats.zscore(df_outliers))
-#define a threshold to identify an outlier
-threshold = 3
-df_outliers=df_outliers[(z < threshold).all(axis=1)]
-Num_outliers_2nd=df_with_outliers.shape[0]-df_outliers.shape[0]
-print("number of outliers is "+str(Num_outliers_2nd))
 from sklearn.neighbors import LocalOutlierFactor
 # fit the model for outlier detection (default)
-n_outliers = Num_outliers_2nd
-ground_truth = np.ones(len(df_scaled), dtype=int)
-ground_truth[-n_outliers:] = -1
 LOF = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
 # use fit_predict to compute the predicted labels of the training samples
 # (when LOF is used for outlier detection, the estimator has no predict,
 # decision_function and score_samples methods).
 y_pred = LOF.fit_predict(df_scaled)
-n_errors = (y_pred != ground_truth).sum()
 X_scores = LOF.negative_outlier_factor_
 LOF_outliers=np.count_nonzero(y_pred == -1)
 LOF_outliers_percentage=round(100*np.count_nonzero(y_pred == -1)/df_scaled.shape[0],0)
-print("Number of outliers is "+str(LOF_outliers)+ ", Noise accounts for "+str(LOF_outliers_percentage)+"%  of the total dataset" )
+print("Number of outliers by LOF is "+str(LOF_outliers)+ ", Noise accounts for "+str(LOF_outliers_percentage)+"%  of the total dataset" )
 plt.close('all')
 #%% 6. Predictive Models
 from sklearn import model_selection
