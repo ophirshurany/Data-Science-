@@ -11,6 +11,8 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')
 plt.close('all')
+import time
+start_time = time.time()
 #%%1. create dataframe
 data = pd.read_csv("bank.csv",sep='|',encoding='utf8')
 #drop duplicate data
@@ -270,8 +272,8 @@ plt.plot(distances)
 plt.title("Find  the  optimal "+r'$  \varepsilon$',fontsize='xx-large', fontweight='bold')
 plt.ylabel("epsilon")
 plt.xlabel("Feature unique values")
-plt.plot([33593], [1.03], 'ro')
-plt.annotate('Optimal '+r'$\varepsilon$', (32710,1.1),
+plt.plot([31825], [0.65], 'ro')
+plt.annotate('Optimal '+r'$\varepsilon$', (31825,0.65),
             xytext=(0.8, 0.9), textcoords='axes fraction',
             arrowprops=dict(facecolor='black', shrink=0.05),
             fontsize=16,
@@ -279,7 +281,7 @@ plt.annotate('Optimal '+r'$\varepsilon$', (32710,1.1),
 plt.tight_layout()
 #eps = the best epsilon is at the "elbow" of NearestNeighbors graph
 from sklearn.cluster import DBSCAN
-db = DBSCAN(eps=1.03,min_samples=5).fit(df_scaled)
+db = DBSCAN(eps=0.65,min_samples=5).fit(df_scaled)
 labels=db.labels_
 clusterNum=len(set(labels))
 print("number of clusters is "+str(clusterNum))
@@ -293,7 +295,8 @@ df_DBSCAN["cluster_Db"]=labels
 df_DBSCAN = df_DBSCAN[df_DBSCAN.cluster_Db != -1]
 df_DBSCAN=df_DBSCAN.drop("cluster_Db",axis=1)
 #5.2 Lots of clusters means low number of noise, therefore low number of outliers.
-#5.3 - Another method to remove outliers
+#5.3 - Another method to remove outliers - LOF
+#first, we use our boxplot analysis to have a "ground_truth" knoledge about outliers:
 from scipy import stats
 z = np.abs(stats.zscore(df_outliers))
 #define a threshold to identify an outlier
@@ -301,6 +304,22 @@ threshold = 3
 df_outliers=df_outliers[(z < threshold).all(axis=1)]
 Num_outliers_2nd=df_with_outliers.shape[0]-df_outliers.shape[0]
 print("number of outliers is "+str(Num_outliers_2nd))
+from sklearn.neighbors import LocalOutlierFactor
+# fit the model for outlier detection (default)
+n_outliers = Num_outliers_2nd
+ground_truth = np.ones(len(df_scaled), dtype=int)
+ground_truth[-n_outliers:] = -1
+LOF = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
+# use fit_predict to compute the predicted labels of the training samples
+# (when LOF is used for outlier detection, the estimator has no predict,
+# decision_function and score_samples methods).
+y_pred = LOF.fit_predict(df_scaled)
+n_errors = (y_pred != ground_truth).sum()
+X_scores = LOF.negative_outlier_factor_
+LOF_outliers=np.count_nonzero(y_pred == -1)
+LOF_outliers_percentage=round(100*np.count_nonzero(y_pred == -1)/df_scaled.shape[0],0)
+print("Number of outliers is "+str(LOF_outliers)+ ", Noise accounts for "+str(LOF_outliers_percentage)+"%  of the total dataset" )
+plt.close('all')
 #%% 6. Predictive Models
 from sklearn import model_selection
 from sklearn.linear_model import LogisticRegression
@@ -310,62 +329,38 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import RandomizedSearchCV
 from pprint import pprint
+from sklearn.utils import resample
 kfold = model_selection.KFold(n_splits=10, random_state=42)
-y=df.y
-X=df.drop("y",axis=1)
+y=df_DBSCAN.y
+X=df_DBSCAN.drop("y",axis=1)
 x_train, x_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, random_state=0) #80/20 split
-x_train.shape
-#%% 6.1.1 Logistic Regression
-Log_Reg=LogisticRegression()
-#explore the hyperparameters
-pprint(Log_Reg.get_params())
-# Number of features to consider at every split
-penalty = ['l1', 'l2',"elasticnet","none"]
-# Method of selecting samples for training each tree
-dual = [True, False]
-fit_intercept = [True, False]
-solver = ['lbfgs', 'newton-cg',"liblinear","sag","saga"]
-multi_class = ['auto', 'ovr',"multinomial"]
-warm_start = [True, False]
-C=[float(x) for x in np.logspace(-4, 4, 9)]
-# Create the random grid
-random_grid = {'penalty': penalty,
-               'fit_intercept': fit_intercept,
-               'solver': solver,
-               'multi_class': multi_class,
-               'warm_start': warm_start,
-               "C":C,
-               'dual': dual}
-pprint(random_grid)
-# search across 100 different combinations, and use all available cores
-Log_Reg_random = RandomizedSearchCV(estimator = Log_Reg,
-                               param_distributions = random_grid,
-                               n_iter = 100, cv = kfold, verbose=2,
-                               random_state=42, n_jobs = -1)
-Log_Reg_random.fit(x_train, y_train)
-Log_Reg_random.best_params_
-Log_Reg_best_random = Log_Reg_random.best_estimator_
-prediction_Log_Reg = Log_Reg_best_random.predict(x_test)
-
-print("for Logistic Regression we get " +str(round(accuracy_score(y_test, prediction_Log_Reg),5)))
-confusion_matrix(y_test, prediction_Log_Reg)
-print(classification_report(y_test, prediction_Log_Reg,target_names=["no","yes"]))
-#AUC
-probsLR = Log_Reg_random.predict_proba(x_test)
-predsLR = probsLR[:,1]
-fprLR, tprLR, thresholdLR = metrics.roc_curve(y_test, predsLR)
-roc_aucLR = metrics.auc(fprLR, tprLR)
-#%% 6.1.2 Random forest
+#%%Upsample
+y_train_no_yes=y_train.value_counts()
+df_majority = df_DBSCAN[df_DBSCAN.y==0]
+df_minority = df_DBSCAN[df_DBSCAN.y==1]
+# Upsample minority class
+df_minority_upsampled = resample(df_minority, 
+                                 replace=True,     # sample with replacement
+                                 n_samples=y_train_no_yes[0],    # to match majority class
+                                 random_state=123) # reproducible results
+df_upsampled = pd.concat([df_majority, df_minority_upsampled])
+df_upsampled.y.value_counts()
+y_upsample=df_upsampled.y
+X_upsample=df_upsampled.drop("y",axis=1)
+x_train_up, x_test_up, y_train_up, y_test_up = model_selection.train_test_split(X_upsample, y_upsample, test_size=0.2, random_state=0) #80/20 split
+x_train=x_train_up
+y_train= y_train_up
+#%% 6.1.1 Random forest
 from sklearn.ensemble import RandomForestClassifier
 rfc = RandomForestClassifier()
 #explore the hyperparameters
 pprint(rfc.get_params())
 # Number of trees in random forest
-n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
+n_estimators = [500]
 # Number of features to consider at every split
 max_features = ['auto', 'sqrt']
 # Maximum number of levels in tree
-max_depth = [int(x) for x in np.linspace(2, 20, num = 10)]
+max_depth = [int(x) for x in np.linspace(2, 9, num = 8)]
 max_depth.append(None)
 # Minimum number of samples required to split a node
 min_samples_split = [2, 5, 10]
@@ -391,21 +386,26 @@ rf_random.best_params_
 rf_best_random = rf_random.best_estimator_
 prediction_RF = rf_best_random.predict(x_test)
 print("for Random Forest we get " +str(round(accuracy_score(y_test, prediction_RF),5)))
-confusion_matrix(y_test, prediction_RF)
+
+CM_RF=confusion_matrix(y_test, prediction_RF)
+df_cm = pd.DataFrame(CM_RF, index = ["Predicted No","Predicted Yes"],
+                  columns = ["Actual No","Actual Yes"])
+plt.figure()
+sns.heatmap(df_cm,cmap="bwr", annot=True)
 print(classification_report(y_test, prediction_RF,target_names=["no","yes"]))
 #AUC
 probs_RF = rf_random.predict_proba(x_test)
 preds_RF = probs_RF[:,1]
 fprrfc, tprrfc, thresholdrfc = metrics.roc_curve(y_test, preds_RF)
 roc_aucrfc = metrics.auc(fprrfc, tprrfc)
-#%% 6.1.3. ADABOOST
+#%% 6.1.2. ADABOOST
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 ADA = AdaBoostClassifier()
 #explore the hyperparameters
 pprint(ADA.get_params())
 #learning rate shrinks the contribution of each tree by learning_rate.
-learning_rate = [float(x) for x in np.linspace(start = 0, stop = 3, num = 9)]
+learning_rate = [round(float(x),2) for x in np.linspace(start = 0.2, stop = 2, num = 10)]
 #algorithm ===================================================================
 # If ‘SAMME.R’ then use the SAMME.R real boosting algorithm.
 # base_estimator must support calculation of class probabilities.
@@ -414,9 +414,9 @@ learning_rate = [float(x) for x in np.linspace(start = 0, stop = 3, num = 9)]
 # achieving a lower test error with fewer boosting iterations.
 # =============================================================================
 algorithm = ["SAMME", "SAMME.R"]
-n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
+n_estimators = [500]
 #The base estimator from which the boosted ensemble is built
-base_estimator= [DecisionTreeClassifier(max_depth=x) for x in np.linspace(2, 20, num = 10)]
+base_estimator= [DecisionTreeClassifier(max_depth=x) for x in np.linspace(2, 8, num = 3)]
 base_estimator.append(None)
 # Create the random grid
 random_grid = {'n_estimators': n_estimators,
@@ -434,14 +434,18 @@ ADA_random.best_params_
 ADA_best_random = ADA_random.best_estimator_
 predictions_ADA = ADA_best_random.predict(x_test)
 print("for ADABOOST we get " +str(round(accuracy_score(y_test, predictions_ADA),5)))
-confusion_matrix(y_test, predictions_ADA)
+CM_ADA=confusion_matrix(y_test, predictions_ADA)
+df_cm = pd.DataFrame(CM_ADA, index = ["Predicted No","Predicted Yes"],
+                  columns = ["Actual No","Actual Yes"])
+plt.figure()
+sns.heatmap(df_cm,cmap=cmap, annot=True)
 print(classification_report(y_test, predictions_ADA,target_names=["no","yes"]))
 #AUC
 probs_ADA = ADA_random.predict_proba(x_test)
 preds_ADA = probs_ADA[:,1]
 fprADA, tprADA, thresholdADA = metrics.roc_curve(y_test, preds_ADA)
 roc_aucADA = metrics.auc(fprADA, tprADA)
-#%%
+#%% 6.1.3.  Gradient Boosting
 from sklearn.ensemble import GradientBoostingClassifier
 grd = GradientBoostingClassifier()
 #explore the hyperparameters
@@ -451,14 +455,14 @@ n_estimators = [int(x) for x in np.linspace(start = 50, stop = 500, num = 10)]
 # Number of features to consider at every split
 max_features = ['auto', 'sqrt',"log2"]
 # Maximum number of levels in tree
-max_depth = [int(x) for x in np.linspace(2, 20, num = 10)]
+max_depth = [int(x) for x in np.linspace(1, 10, num = 10)]
 max_depth.append(None)
 # Minimum number of samples required to split a node
 min_samples_split = [2, 5, 10]
 # Minimum number of samples required at each leaf node
 min_samples_leaf = [1, 2, 4]
 #learning rate shrinks the contribution of each tree by learning_rate.
-learning_rate=[round(float(x),1) for x in np.linspace(start = 0, stop = 1, num = 11)]
+#learning_rate=[round(float(x),2) for x in np.linspace(start = 0, stop = 0.1, num = 11)]
 #loss function to be optimized
 loss=["deviance", "exponential"]
 # Create the random grid
@@ -467,8 +471,8 @@ random_grid = {'n_estimators': n_estimators,
                 'max_depth': max_depth,
                 'min_samples_split': min_samples_split,
                 'min_samples_leaf': min_samples_leaf,
-                'loss' : loss,
-                'learning_rate': learning_rate}
+                'loss' : loss}
+ #               'learning_rate': learning_rate}
 pprint(random_grid)
 #search across 100 different combinations, and use all available cores
 grd_random = RandomizedSearchCV(estimator = grd,
@@ -480,7 +484,11 @@ grd_random.best_params_
 grd_best_random = grd_random.best_estimator_
 predictions_grd = grd_best_random.predict(x_test)
 print("for Gradient Boosting we get " +str(round(accuracy_score(y_test, predictions_grd),5)))
-confusion_matrix(y_test, predictions_grd)
+CM_grd=confusion_matrix(y_test, predictions_grd)
+df_cm = pd.DataFrame(CM_grd, index = ["Predicted No","Predicted Yes"],
+                  columns = ["Actual No","Actual Yes"])
+plt.figure()
+sns.heatmap(df_cm,cmap=cmap, annot=True)
 print(classification_report(y_test, predictions_grd,target_names=["no","yes"]))
 #AUC
 probs_grd = grd_random.predict_proba(x_test)
@@ -489,12 +497,13 @@ fprgrd, tprgrd, thresholdgrd = metrics.roc_curve(y_test, preds_grd)
 roc_aucgrd = metrics.auc(fprgrd, tprgrd)
 #%%AUC Curve
 sns.set()
+plt.figure()
 plt.plot([0, 1], [0, 1],'r--')
 plt.title('Predictive models RUC Comparison',fontsize=20)
 plt.ylabel('True Positive Rate',fontsize=20)
 plt.xlabel('False Positive Rate',fontsize=15)
-plt.plot(fprrfc, tprrfc, label = 'Random Forest AUC = %0.2f' % roc_aucrfc)
-plt.plot(fprLR, tprLR, label = 'Logistic Regression AUC = %0.2f' % roc_aucLR)
-plt.plot(fprADA, tprADA, label = 'ADABOOST AUC = %0.2f' % roc_aucADA)
-plt.plot(fprADA, tprADA, label = 'Gradient Boosting AUC = %0.2f' % roc_aucgrd)
+plt.plot(fprgrd, tprgrd, label = 'Gradient Boosting AUC = %0.3f' % roc_aucgrd)
+plt.plot(fprrfc, tprrfc, label = 'Random Forest AUC = %0.3f' % roc_aucrfc)
+plt.plot(fprADA, tprADA, label = 'ADABOOST AUC = %0.3f' % roc_aucADA)
 plt.legend(loc = 'lower right', prop={'size': 16})
+print("--- %s minutes ---" % (round(time.time()/60 - start_time/60,2)))
