@@ -15,6 +15,6 @@ https://towardsdatascience.com/machine-learning-clustering-dbscan-determine-the-
 Outliers
 https://towardsdatascience.com/ways-to-detect-and-remove-the-outliers-404d16608dba
 
-Hyper models
+Predictive models
 https://github.com/HegdeChaitra/Bank-Marketing-Campaign-Analysis/blob/master/Bank_Marketing_Project.ipynb 
 https://www.kaggle.com/janiobachmann/bank-marketing-campaign-opening-a-term-deposit
