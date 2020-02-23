@@ -1,1 +1,36 @@
+https://github.com/yixuanzhou/Pulsar-Candidates-Calssification/blob/master/EE_660_Final_Project_Report_Yixuan_Zhou.pdf
+
+Clustering
 https://github.com/AshishSardana/pulsars-candidate-classifier/blob/master/Pulsar%20Classification.ipynb
+
+AgglomerativeClustering
+https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html
+
+Metrics and scoring: quantifying the quality of predictions
+https://scikit-learn.org/stable/modules/model_evaluation.html
+https://towardsdatascience.com/metrics-for-imbalanced-classification-41c71549bbb5
+
+F1 score
+https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
+
+PCA
+https://github.com/AshishSardana/pulsars-candidate-classifier/blob/master/Pulsar%20Classification.ipynb
+
+SMOTE
+https://imbalanced-learn.readthedocs.io/en/stable/generated/imblearn.over_sampling.SMOTE.html
+
+OVER SAMPLING
+https://imbalanced-learn.readthedocs.io/en/stable/generated/imblearn.over_sampling.RandomOverSampler.html
+
+COMBINE APPROACH
+https://imbalanced-learn.readthedocs.io/en/stable/auto_examples/combine/plot_comparison_combine.html#sphx-glr-auto-examples-combine-plot-comparison-combine-py
+
+silhouette_score
+https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_silhouette_analysis.html#sphx-glr-auto-examples-cluster-plot-kmeans-silhouette-analysis-py
+
+LIME & SHAP
+https://medium.com/ibm-garage/explaining-black-box-models-ensemble-and-deep-learning-using-lime-and-shap-53c59d9f09b3
+https://towardsdatascience.com/introducing-shap-decision-plots-52ed3b4a1cba
+
+Merge Jupyter notebooks
+https://github.com/jbn/nbmerge

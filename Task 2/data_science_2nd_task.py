@@ -25,20 +25,14 @@ sns.set()
 #%% Create dataframe
 data = pd.read_csv("pulsar_stars.csv")
 #view first 5 rows in df
-data.head()
-#presenting all columns, number of rows and type
-data.info()
-#feature statistics for numerical categories
-data.describe()
-#Majority class is 0 (Not a pulsar)
 #%%
 cols = list(data.columns)
 features = cols
 features.remove('target_class')
 # Normalization
-Data = StandardScaler().fit_transform(data)
 X=data[features]
 Y=data.target_class
+X=StandardScaler().fit_transform(X)
 #%%
 # Load models
 
