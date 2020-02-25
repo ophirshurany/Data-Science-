@@ -44,6 +44,33 @@ reduced_data = pca.fit_transform(X)
 #print(reduced_data[:10])  # print upto 10 elements
 reduced_data.shape
 #%%
+principalDf = pd.DataFrame(data = reduced_data, columns = ['principal component 1', 'principal component 2'])
+finalDf = pd.concat([principalDf, data[['target_class']]], axis = 1)
+fig = plt.figure(figsize = (8,8))
+ax = fig.add_subplot(1,1,1) 
+ax.set_xlabel('Principal Component 1', fontsize = 15)
+ax.set_ylabel('Principal Component 2', fontsize = 15)
+ax.set_title('2 component PCA', fontsize = 20)
+targets = [1,0]
+colors = ['b', 'r']
+for target, color in zip(targets,colors):
+    indicesToKeep = finalDf['target_class'] == target
+    ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1']
+               , finalDf.loc[indicesToKeep, 'principal component 2']
+               , c = color
+               , s = 50)
+ax.legend(["Positive","Negative"])
+ax.grid()
+# =============================================================================
+pca.explained_variance_ratio_
+print("By using the attribute explained_variance_ratio_, /n "
+      "you can see that the first principal component contains/n"
+      ,100*round(pca.explained_variance_ratio_[0],2),"% of the variance and/n"
+      " the second principal component contains/n"
+      ,100*round(pca.explained_variance_ratio_[1],2),"% of the variance/n."
+      "Together,the two components contain 95.80% of the information")
+# =============================================================================
+#%%
 from sklearn import cluster
 from sklearn import metrics
 from sklearn.cluster import KMeans,AgglomerativeClustering
@@ -53,138 +80,41 @@ kmeans = cluster.KMeans(n_clusters=2)
 clusters = kmeans.fit(reduced_data)
 print(clusters)
 #%%
-range_n_clusters = [2, 3, 4, 5, 6]
+results_KMeans=[]
+results_AC_n=[]
+range_n_clusters = [2, 3, 4, 5, 6,7,8]
+
 for n_clusters in range_n_clusters:
     AC_n=AgglomerativeClustering(n_clusters=n_clusters)
     Kmeans_n = KMeans(n_clusters=n_clusters)
-    clusterers=[AC_n,Kmeans_n]
-    cluster_names=["Agglomerative Clustering","KMeans"]
+    clusterers=[Kmeans_n,AC_n]
+    cluster_names=["KMeans","Agglomerative Clustering"]
     for clusterer in clusterers:
-        # Create a subplot with 1 row and 2 columns
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        fig.set_size_inches(18, 7)
-    
-        # The 1st subplot is the silhouette plot
-        # The silhouette coefficient can range from -1, 1 but in this example all
-        # lie within [-0.1, 1]
-        ax1.set_xlim([-0.1, 1])
-        # The (n_clusters+1)*10 is for inserting blank space between silhouette
-        # plots of individual clusters, to demarcate them clearly.
-        ax1.set_ylim([0, len(reduced_data) + (n_clusters + 1) * 10])
-    
-        # Initialize the clusterer with n_clusters value and a random generator
-        # seed of 10 for reproducibility.
         cluster_labels = clusterer.fit_predict(reduced_data)
-    
         # The silhouette_score gives the average value for all the samples.
         # This gives a perspective into the density and separation of the formed
         # clusters
         silhouette_avg = silhouette_score(reduced_data, cluster_labels)
-        print("For n_clusters =", n_clusters,
-              "The average silhouette_score for "+cluster_names[clusterers.index(clusterer)]+" is :", round(silhouette_avg,2)
-    
-        # Compute the silhouette scores for each sample
-        sample_silhouette_values = silhouette_samples(reduced_data, cluster_labels)
-    
-        y_lower = 10
-        for i in range(n_clusters):
-            # Aggregate the silhouette scores for samples belonging to
-            # cluster i, and sort them
-            ith_cluster_silhouette_values = \
-                sample_silhouette_values[cluster_labels == i]
-    
-            ith_cluster_silhouette_values.sort()
-    
-            size_cluster_i = ith_cluster_silhouette_values.shape[0]
-            y_upper = y_lower + size_cluster_i
-    
-            color = cm.nipy_spectral(float(i) / n_clusters)
-            ax1.fill_betweenx(np.arange(y_lower, y_upper),
-                              0, ith_cluster_silhouette_values,
-                              facecolor=color, edgecolor=color, alpha=0.7)
-    
-            # Label the silhouette plots with their cluster numbers at the middle
-            ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
-    
-            # Compute the new y_lower for next plot
-            y_lower = y_upper + 10  # 10 for the 0 samples
-    
-        ax1.set_title("The silhouette plot for the various clusters.")
-        ax1.set_xlabel("The silhouette coefficient values")
-        ax1.set_ylabel("Cluster label")
-    
-        # The vertical line for average silhouette score of all the values
-        ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
-    
-        ax1.set_yticks([])  # Clear the yaxis labels / ticks
-        ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
-    
-        # 2nd Plot showing the actual clusters formed
-        colors = cm.nipy_spectral(cluster_labels.astype(float) / n_clusters)
-        ax2.scatter(reduced_data[:, 0], reduced_data[:, 1], marker='.', s=30, lw=0, alpha=0.7,
-                    c=colors, edgecolor='k')
-   
-        ax2.set_title("The visualization of the clustered data.")
-        ax2.set_xlabel("Feature space for the 1st feature")
-        ax2.set_ylabel("Feature space for the 2nd feature")
-    
-        plt.suptitle(("Silhouette analysis for "+cluster_names[clusterers.index(clusterer)]+" on sample data ""with n_clusters = %d" % n_clusters),fontsize=14, fontweight='bold')
-
-plt.show()
-#%%
-# Plot the decision boundary by building a mesh grid to populate a graph.
-x_min, x_max = reduced_data[:, 0].min() - 1, reduced_data[:, 0].max() + 1
-y_min, y_max = reduced_data[:, 1].min() - 1, reduced_data[:, 1].max() + 1
-
-hx = (x_max-x_min)/1000.
-hy = (y_max-y_min)/1000.
-
-xx, yy = np.meshgrid(np.arange(x_min, x_max, hx), np.arange(y_min, y_max, hy))
-
-# Obtain labels for each point in mesh. Use last trained model.
-Z = clusters.predict(np.c_[xx.ravel(), yy.ravel()])
-#%%
-# Find the centroids for KMeans or the cluster means for Gaussian Mixed Model
-
-centroids = kmeans.cluster_centers_
-
-print('*** K MEANS CENTROIDS ***')
-print(centroids)
-
-# TRANSFORM DATA BACK TO ORIGINAL SPACE FOR ANSWERING 7
-
-print('*** CENTROIDS TRANSFERRED TO ORIGINAL SPACE ***')
-print(pca.inverse_transform(centroids))
-
-#%%
-# Put the result into a color plot
-Z = Z.reshape(xx.shape)
-plt.figure(1,figsize=(15,10))
-plt.clf()
-plt.imshow(Z, interpolation='Nearest',
-           extent=(xx.min(), xx.max(), yy.min(), yy.max()),
-           cmap=plt.cm.Paired,
-           aspect='auto', origin='lower')
-
-plt.plot(reduced_data[:, 0], reduced_data[:, 1], 'k.', markersize=2)
-plt.scatter(centroids[:, 0], centroids[:, 1],
-            marker='x', s=169, linewidths=3,
-            color='w', zorder=10)
-plt.title('Clustering on the seeds dataset (PCA-reduced data)\n'
-          'Centroids are marked with white cross')
-plt.xlim(x_min, x_max)
-plt.ylim(y_min, y_max)
-plt.xticks(())
-plt.yticks(())
-plt.show()
-
+        if cluster_names[clusterers.index(clusterer)]=="KMeans":
+            results_KMeans.append(silhouette_avg)
+        else:
+            results_AC_n.append(silhouette_avg)
+fig = plt.figure()
+ax = plt.axes()
+ax.plot(range_n_clusters,results_KMeans,'-og', label='Kmeans')
+ax.plot(range_n_clusters,results_AC_n,'-or', label='Agglomerative Clustering')
+ax.set_title("The silhouette plot for the various clusters")
+ax.set_ylabel("The silhouette coefficient values")
+ax.set_xticks(range_n_clusters)
+ax.set_xticklabels(range_n_clusters)
+ax.set_xlabel("Cluster label")
+ax.legend()
+ax.grid(True)
 #%%
 ac = cluster.AgglomerativeClustering(n_clusters=2, affinity='euclidean', linkage='complete')
 labels = ac.fit_predict(X)
 print('Cluster labels: %s' % labels)
 np.shape(labels)
-
-#%%
 n_classes = 2
 LABELS = [" Noise ","Pulsars"]
 clf = cluster.KMeans(init='k-means++', n_clusters=2, random_state=5)
