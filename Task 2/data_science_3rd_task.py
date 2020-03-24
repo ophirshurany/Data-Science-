@@ -20,8 +20,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import classification_report,confusion_matrix,roc_curve,auc,fbeta_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score,v_measure_score
 from sklearn.decomposition import PCA
+from sklearn import cluster
+from sklearn.cluster import KMeans,AgglomerativeClustering
+from sklearn.metrics import silhouette_score
+import matplotlib.cm as cm
 sns.set()
 #%% Create dataframe
 data = pd.read_csv("pulsar_stars.csv")
@@ -43,46 +47,36 @@ pca = PCA(n_components=2)
 reduced_data = pca.fit_transform(X)
 #print(reduced_data[:10])  # print upto 10 elements
 reduced_data.shape
-#%%
 principalDf = pd.DataFrame(data = reduced_data, columns = ['principal component 1', 'principal component 2'])
 finalDf = pd.concat([principalDf, data[['target_class']]], axis = 1)
 fig = plt.figure(figsize = (8,8))
+PCA1='principal component 1 - '+str(100*round(pca.explained_variance_ratio_[0],2))+"% variance"
+PCA2='principal component 2 - '+str(100*round(pca.explained_variance_ratio_[1],2))+"% variance"
 ax = fig.add_subplot(1,1,1) 
-ax.set_xlabel('Principal Component 1', fontsize = 15)
-ax.set_ylabel('Principal Component 2', fontsize = 15)
-ax.set_title('2 component PCA', fontsize = 20)
+ax.set_xlabel(PCA1, fontsize = 15)
+ax.set_ylabel(PCA2, fontsize = 15)
+ax.set_title('2 component PCA by Kmeans', fontsize = 20)
 targets = [1,0]
 colors = ['b', 'r']
+pca.explained_variance_ratio_
 for target, color in zip(targets,colors):
     indicesToKeep = finalDf['target_class'] == target
     ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1']
                , finalDf.loc[indicesToKeep, 'principal component 2']
-               , c = color
-               , s = 50)
-ax.legend(["Positive","Negative"])
+               , c = color,alpha=0.5)
 ax.grid()
-# =============================================================================
-pca.explained_variance_ratio_
-print("By using the attribute explained_variance_ratio_, /n "
-      "you can see that the first principal component contains/n"
-      ,100*round(pca.explained_variance_ratio_[0],2),"% of the variance and/n"
-      " the second principal component contains/n"
-      ,100*round(pca.explained_variance_ratio_[1],2),"% of the variance/n."
-      "Together,the two components contain 95.80% of the information")
-# =============================================================================
-#%%
-from sklearn import cluster
-from sklearn import metrics
-from sklearn.cluster import KMeans,AgglomerativeClustering
-from sklearn.metrics import silhouette_samples, silhouette_score
-import matplotlib.cm as cm
 kmeans = cluster.KMeans(n_clusters=2)
-clusters = kmeans.fit(reduced_data)
-print(clusters)
+kmeans.fit(reduced_data)
+centroids = kmeans.cluster_centers_
+ax.scatter(centroids[:, 0], centroids[:, 1],
+            marker='x', s=169, linewidths=3,
+            color='k', zorder=10)
+ax.legend(["Positive","Negative","Centroid"])
+print(" Together, the two components contain",str(100*round(sum(pca.explained_variance_ratio_),2)),"% of the information")
 #%%
 results_KMeans=[]
 results_AC_n=[]
-range_n_clusters = [2, 3, 4, 5, 6,7,8]
+range_n_clusters = [2, 3, 4, 5, 6]
 
 for n_clusters in range_n_clusters:
     AC_n=AgglomerativeClustering(n_clusters=n_clusters)
@@ -107,55 +101,53 @@ ax.set_title("The silhouette plot for the various clusters")
 ax.set_ylabel("The silhouette coefficient values")
 ax.set_xticks(range_n_clusters)
 ax.set_xticklabels(range_n_clusters)
-ax.set_xlabel("Cluster label")
+ax.set_xlabel("# Clusters")
 ax.legend()
 ax.grid(True)
 #%%
-ac = cluster.AgglomerativeClustering(n_clusters=2, affinity='euclidean', linkage='complete')
-labels = ac.fit_predict(X)
-print('Cluster labels: %s' % labels)
-np.shape(labels)
-n_classes = 2
-LABELS = [" Noise ","Pulsars"]
-clf = cluster.KMeans(init='k-means++', n_clusters=2, random_state=5)
-clf.fit(X_train)
-print(clf.labels_.shape)
-print(clf.labels_)
-
-# Predict clusters on testing data
-Y_pred = clf.predict(X_test)
-
+from sklearn.metrics import jaccard_score,fowlkes_mallows_score,precision_recall_curve
+from sklearn.metrics import log_loss
+from sklearn.metrics.cluster import adjusted_rand_score
+X_train, X_test, y_train, y_test = train_test_split(reduced_data, Y, test_size=0.2, random_state=42)
+AC_n=AgglomerativeClustering(n_clusters=2)
+Kmeans_n = KMeans(n_clusters=2)
+clusterers=[Kmeans_n,AC_n]
+cluster_names=["KMeans","Agglomerative Clustering"]
+fit_results=[]
+for clusterer in clusterers:   
+    clusterer.fit(X_train, y_train)
+    y_pred=clusterer.fit_predict(X_test)
+    Rand=adjusted_rand_score(y_test, y_pred)
+    jaccard=jaccard_score(y_test, y_pred)
+    FM=fowlkes_mallows_score(y_test, y_pred)
+    cond_entropy=v_measure_score(y_test, y_pred)
+    F_score=f1_score(y_test, y_pred)
+    fit_results.append([Rand,jaccard,FM,F_score,cond_entropy])
+results_table=pd.DataFrame(fit_results,
+                           columns=['Rand', 'jaccard', 'FM',"cond_entropy","F_score"],
+                           index=cluster_names).round(2)
+#%%
 from matplotlib.pyplot import cm 
 n=2
-c = []
-color=iter(cm.rainbow(np.linspace(0,1,n)))
-for i in range(n):
-    c.append(next(color))
-
-
-n = 2
+colors = ['r','b']
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(15,7.5))
 
-pca = PCA(n_components=2)
-X1 = pca.fit_transform(X)
 km = KMeans(n_clusters= n , random_state=0)
-y_km = km.fit_predict(X1)
+y_km = km.fit_predict(reduced_data)
 
 for i in range(n):
-    ax1.scatter(X1[y_km==i,0], X1[y_km==i,1], c=c[i], marker='o', s=40)   
+    ax1.scatter(reduced_data[y_km==i,0], reduced_data[y_km==i,1], c=colors[i], marker='o',alpha=0.5)   
 ax1.set_title('K-means Clustering')
 
 
 ac = AgglomerativeClustering(n_clusters=n, affinity='euclidean', linkage='complete')
-y_ac = ac.fit_predict(X1)
+y_ac = ac.fit_predict(reduced_data)
 
 for i in range(n):
-    ax2.scatter(X1[y_ac==i,0], X1[y_ac==i,1], c=c[i], marker='o', s=40)
+    ax2.scatter(reduced_data[y_ac==i,0], reduced_data[y_ac==i,1], c=colors[i], marker='o',alpha=0.5)
 ax2.set_title('Agglomerative Clustering')
-
-
 # Put a legend below current axis
-plt.legend(['Negative','Positive'])
+plt.legend(["Negative","Positive"])
     
 plt.tight_layout()
 #plt.savefig('./figures/kmeans_and_ac.png', dpi=300)

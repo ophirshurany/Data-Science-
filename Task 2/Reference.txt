@@ -34,3 +34,8 @@ https://towardsdatascience.com/introducing-shap-decision-plots-52ed3b4a1cba
 
 Merge Jupyter notebooks
 https://github.com/jbn/nbmerge
+
+gradient_boosting_regression
+https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_regression.html#sphx-glr-auto-examples-ensemble-plot-gradient-boosting-regression-py
+
+https://github.com/sayali-nakashe/ML-analysis/blob/master/Analysis%20of%20Machine%20Learning%20Models%20on%20the%20Communities%20and%20Crime%20dataset.ipynb
