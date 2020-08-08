@@ -1,0 +1,258 @@
+Created on Sat Aug  8 10:40:16 2020
+
+@author: OphirShurany
+"""
+#%% Km=13
+import numpy as np
+from scipy import integrate
+import matplotlib.pyplot as plt
+
+plt.close()
+# define system in terms of a Numpy array
+def Sys(X, t=0):
+    # here X[0] = x and x[1] = y    
+    return np.array([ Vin-k1*X[0]*X[1],2*k1*X[0]*X[1]-kp*X[1]/(Km+X[1])])
+Vin = 0.36
+k1 =0.02
+dt = 0.1             
+kp = 6              
+Km= 13
+# generate 1000 linearly spaced numbers for x-axes
+t = np.linspace(0, 100, 1000)
+# initial values: x0 = 10, y0 = 2
+Sys0 = np.array([3, 4])
+
+# type "help(integrate.odeint)" if you want more information about integrate.odeint inputs and outputs.
+X, infodict = integrate.odeint(Sys, Sys0, t, full_output=True)
+# infodict['message']                      # integration successful
+
+G,T = X.T
+#plot
+fig1 = plt.figure()
+ax1 = fig1.add_subplot(1,1,1)
+#fig.subplots_adjust(wspace = 0.5, hspace = 0.3)
+
+ax1.plot(t,G, 'r-', label='G')
+ax1.plot(t,T,'b-', label='ATP')
+ax1.set_title("Dynamics in time Km=13")
+ax1.set_xlabel("time")
+ax1.grid()
+ax1.legend(loc='best')
+
+plt.savefig('EulerODE_Km=13.png')
+#%%Km= 15
+Vin = 0.36
+k1 =0.02
+dt = 0.1             
+kp = 6              
+Km= 15
+# generate 1000 linearly spaced numbers for x-axes
+t = np.linspace(0, 100, 1000)
+# initial values: x0 = 10, y0 = 2
+Sys0 = np.array([3, 4])
+# type "help(integrate.odeint)" if you want more information about integrate.odeint inputs and outputs.
+X, infodict = integrate.odeint(Sys, Sys0, t, full_output=True)
+# infodict['message']                      # integration successful
+
+G,T = X.T
+fig2 = plt.figure()
+ax2 = fig2.add_subplot(1,1,1)
+ax2.plot(t,G, 'r-', label='G')
+ax2.plot(t,T,'b-', label='ATP')
+ax2.set_title("Dynamics in time Km=15")
+ax2.set_xlabel("time")
+ax2.grid()
+ax2.legend(loc='best')
+
+plt.savefig('EulerODE_Km=15.png')
+#%%equilibrium Point
+import sympy as sm
+# define the system in this way (asuming a predator-prey-system with no negative values)
+# to avoid interference x = r (for resource) and y = c (for consumer) 
+r, c = sm.symbols('r, c', negative=False)
+R = Vin-k1*r*c
+C = 2*k1*r*c-kp*c/(Km+c)
+
+# use sympy's way of setting equations to zero
+REqual = sm.Eq(R, 0)
+CEqual = sm.Eq(C, 0)
+
+# compute fixed points
+equilibria = sm.solve( (REqual, CEqual), r, c )
+print(equilibria)
+#%%Nullclines
+# plot fixed points
+for point in equilibria:
+    ax1.plot(point[0],point[1],"red", marker = "o", markersize = 10.0)
+
+# quiverplot
+# define a grid and compute direction at each point
+x = np.linspace(0, 100, 50)
+y = np.linspace(0, 20, 50)
+
+X1 , Y1  = np.meshgrid(x, y)                    # create a grid
+DX1, DY1 = Sys([X1, Y1])                        # compute growth rate on the grid
+M = (np.hypot(DX1, DY1))                        # norm growth rate 
+M[ M == 0] = 1.                                 # avoid zero division errors 
+DX1 /= M                                        # normalize each arrows
+DY1 /= M
+
+ax1.quiver(X1, Y1, DX1, DY1, M)
+ax1.legend()
+ax1.grid()
+plt.savefig('Nullclines Km=13.png')
+#%%Equilabirium point - Km=13
+# define system in terms of a Numpy array
+def Sys(X, t=0):
+    # here X[0] = x and x[1] = y    
+    return np.array([ Vin-k1*X[0]*X[1],2*k1*X[0]*X[1]-kp*X[1]/(Km+X[1])])
+Vin = 0.36
+k1 =0.02
+dt = 0.1             
+kp = 6              
+Km= 13
+# generate 1000 linearly spaced numbers for x-axes
+t = np.linspace(0, 100, 1000)
+# initial values: x0 = 10, y0 = 2
+Sys0 = np.array([int(round(equilibria[0][0],0)),int(round(equilibria[0][1],0))])
+
+# type "help(integrate.odeint)" if you want more information about integrate.odeint inputs and outputs.
+X, infodict = integrate.odeint(Sys, Sys0, t, full_output=True)
+# infodict['message']                      # integration successful
+
+G,T = X.T
+#plot
+fig3 = plt.figure()
+ax3 = fig3.add_subplot(1,1,1)
+#fig.subplots_adjust(wspace = 0.5, hspace = 0.3)
+
+ax3.plot(t,G, 'r-', label='G')
+ax3.plot(t,T,'b-', label='ATP')
+ax3.set_title("Dynamics in time Km=13 Equilabirium point")
+ax3.set_xlabel("time")
+ax3.grid()
+ax3.legend(loc='best')
+
+#%%Equilabirium point - Km=20
+# define system in terms of a Numpy array
+
+def Sys(X, t=0):
+    # here X[0] = x and x[1] = y    
+    return np.array([ Vin-k1*X[0]*X[1],2*k1*X[0]*X[1]-kp*X[1]/(Km+X[1])])
+Vin = 0.36
+k1 =0.02
+dt = 0.1             
+kp = 6              
+Km= 20
+# generate 1000 linearly spaced numbers for x-axes
+t = np.linspace(0, 100, 1000)
+# initial values: x0 = 10, y0 = 2
+Sys0 = np.array([int(round(equilibria[0][0],0)),int(round(equilibria[0][1],0))])
+
+# type "help(integrate.odeint)" if you want more information about integrate.odeint inputs and outputs.
+X, infodict = integrate.odeint(Sys, Sys0, t, full_output=True)
+# infodict['message']                      # integration successful
+
+G,T = X.T
+#plot
+fig4 = plt.figure()
+ax4 = fig4.add_subplot(1,1,1)
+#fig.subplots_adjust(wspace = 0.5, hspace = 0.3)
+
+ax4.plot(t,G, 'r-', label='G')
+ax4.plot(t,T,'b-', label='ATP')
+ax4.set_title("Dynamics in time Km=13 Equilabirium point")
+ax4.set_xlabel("time")
+ax4.grid()
+ax4.legend(loc='best')
+#%%
+# plot fixed points
+for point in equilibria:
+    ax3.plot(point[0],point[1],"red", marker = "o", markersize = 10.0)
+
+# quiverplot
+# define a grid and compute direction at each point
+x = np.linspace(0, 100, 50)
+y = np.linspace(0, 20, 50)
+
+X1 , Y1  = np.meshgrid(x, y)                    # create a grid
+DX1, DY1 = Sys([X1, Y1])                        # compute growth rate on the grid
+M = (np.hypot(DX1, DY1))                        # norm growth rate 
+M[ M == 0] = 1.                                 # avoid zero division errors 
+DX1 /= M                                        # normalize each arrows
+DY1 /= M
+
+ax3.quiver(X1, Y1, DX1, DY1, M)
+ax3.legend()
+ax3.grid()
+plt.savefig('Nullclines equilibrriumPoint.png')
+#%%
+Km_list=np.linspace(0, 100, 101)
+ATP_list=[]
+for Km in range(0,101):
+    def Sys(X, t=0):
+        # here X[0] = x and x[1] = y    
+        return np.array([ Vin-k1*X[0]*X[1],2*k1*X[0]*X[1]-kp*X[1]/(Km+X[1])])
+    Vin = 0.36
+    k1 =0.02
+    dt = 0.1             
+    kp = 6              
+    
+    # generate 1000 linearly spaced numbers for x-axes
+    t = np.linspace(0, 100, 1000)
+    # initial values: x0 = 10, y0 = 2
+    Sys0 = np.array([3, 4])
+    
+    # type "help(integrate.odeint)" if you want more information about integrate.odeint inputs and outputs.
+    X, infodict = integrate.odeint(Sys, Sys0, t, full_output=True)
+    # infodict['message']                      # integration successful
+    
+    G,T = X.T
+    ATP_list.append(max(T))
+#plot
+fig4 = plt.figure()
+ax4 = fig4.add_subplot(1,1,1)
+# #fig.subplots_adjust(wspace = 0.5, hspace = 0.3)
+
+ax4.plot(Km_list,ATP_list,'r-', label='ATP')
+ax4.set_title("bifurcation ATP vs Km")
+ax4.set_xlabel("Km")
+ax4.set_ylabel("ATP")
+ax4.grid()
+plt.savefig('bifurcation ATP vs Km.png')
+
+#%% here again, in order to avoid interference x = r (for resource) and y = c (for consumer) (see above) 
+
+# put equations into matrix-form and compute Jacobian-matrix  
+eqMat = sm.Matrix([ R, C ])
+Mat = sm.Matrix([ r, c ])
+jacMat = eqMat.jacobian(Mat)
+print('Jacobian %s' % jacMat)
+print('---------------------')
+
+# iterate through list of equilibria
+for item in equilibria:
+    eqmat = jacMat.subs([ (r, item[0]), (c, item[1]) ])
+    print(eqmat.eigenvals)
+#%%
+from scipy import signal
+from scipy.signal import ss2tf
+A=np.array([[-k1*equilibria[0][1], -k1*equilibria[0][0]],
+            [2*k1*-k1*equilibria[0][1], 2*k1*-k1*equilibria[0][0]-kp*k1/((Km+2*k1*-k1*equilibria[0][1])**2)]])
+B=np.array([[1], [0]])
+C=np.array([[0, 1]])
+D = 0
+sys = signal.StateSpace(A,B,C,D)
+print(sys)
+#TF=ss2tf(A, B, C,D)
+#%%
+import numpy as np
+from matplotlib import pyplot as plt 
+import control
+
+
+G = control.TransferFunction((-0.2031), (1.-0.3701,1.95*(10**-5)))
+
+rlist, klist = control.rlocus(G)
+
+plt.show()
